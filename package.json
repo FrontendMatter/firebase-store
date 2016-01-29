@@ -20,5 +20,13 @@
   "main": "lib/firebase-store.js",
   "keywords": [
     "firebase"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/themekit/firebase-store.git"
+  },
+  "bugs": {
+    "url": "https://github.com/themekit/firebase-store/issues"
+  },
+  "homepage": "https://github.com/themekit/firebase-store#readme"
 }
