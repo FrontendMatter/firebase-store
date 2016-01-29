@@ -82,6 +82,15 @@ class Store extends EventEmitter {
 	}
 
 	/**
+	 * Removes a path from Firebase.
+	 * @param  {string} path The path to remove.
+	 * @return {Promise}      A Promise.
+	 */
+	remove (path) {
+		return this.set(path, null)
+	}
+
+	/**
 	 * Retrieve snapshot value once from a Firebase path.
 	 * @param {string} path 	The path to retrieve.
 	 * @return {Promise} 		A Promise.
