@@ -69,13 +69,17 @@ class Store extends EventEmitter {
 		this.emit('serviceLoading')
 		return new Promise((resolve, reject) => {
 			const ref = this.pathToRef(path)
+			const objectId = ref.key()
+			if (typeof data === 'object') {
+				data.objectId = objectId
+			}
 			ref.set(data, (e) => {
 				if (e) {
 					reject(e)
 					this.emit('serviceError', e)
 					return
 				}
-				resolve(ref.key())
+				resolve(objectId)
 				this.emit('serviceComplete')
 			})
 		})
@@ -106,6 +110,20 @@ class Store extends EventEmitter {
 				this.emit('serviceError', e)
 			})
 		})
+	}
+
+	/**
+	 * Convert a Firebase snapshot object to array
+	 * @param  {Object} snapshot 	A Firebase snapshot.
+	 * @return {Array}
+	 */
+	snapshotArray (snapshot) {
+		const results = snapshot.val()
+		const array = []
+		for (let objectId in results) {
+			array.push(results[objectId])
+		}
+		return array
 	}
 
 	/**
