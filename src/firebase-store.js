@@ -61,27 +61,37 @@ class Store extends EventEmitter {
 
 	/**
 	 * Sets data to a Firebase path.
-	 * @param {string} path 	The path to set.
-	 * @param {?} data 			The value to set.
-	 * @return {Promise} 		A Promise.
+	 * @param {string} path 		The path to set.
+	 * @param {?} data 				The value to set.
+	 * @param {string} objectId 	Set an explicit objectId
+	 * @return {Promise} 			A Promise.
 	 */
-	set (path, data) {
+	set (path, data, objectId) {
 		this.emit('serviceLoading')
 		return new Promise((resolve, reject) => {
 			const ref = this.pathToRef(path)
-			const objectId = ref.key()
-			if (typeof data === 'object') {
-				data.objectId = objectId
+			if (!objectId) {
+				objectId = ref.key()
 			}
-			ref.set(data, (e) => {
-				if (e) {
-					reject(e)
-					this.emit('serviceError', e)
-					return
-				}
-				resolve(objectId)
-				this.emit('serviceComplete')
-			})
+			if (data && typeof data === 'object') {
+				// using Object.assign to also clean up 
+				// any non-own properties like observers
+				data = Object.assign({}, { objectId }, data)
+			}
+			try {
+				ref.set(data, (e) => {
+					if (e) {
+						this.emit('serviceError', e)
+						return reject(e)
+					}
+					resolve(objectId)
+					this.emit('serviceComplete')
+				})
+			}
+			catch (e) {
+				this.emit('serviceError', e)
+				return reject(e)
+			}
 		})
 	}
 
