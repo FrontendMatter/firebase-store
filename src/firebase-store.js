@@ -3,7 +3,7 @@ import { EventEmitter } from 'events'
 import trim from 'mout/string/trim'
 
 /**
- * Store Firebase Service.
+ * Firebase Store
  * @extends {EventEmitter}
  */
 class Store extends EventEmitter {
@@ -42,7 +42,7 @@ class Store extends EventEmitter {
 	 * @param  {Firebase} ref 	The Firebase reference
 	 * @return {string}     	A Firebase path.
 	 */
-	getPathFromRef (ref) {
+	getPath (ref) {
 		return trim(ref.toString().replace(this.ref_base, ''), '/')
 	}
 
@@ -59,24 +59,30 @@ class Store extends EventEmitter {
 		return ref
 	}
 
+	refEventName (ref, eventName) {
+		const path = this.getPath(ref)
+		const flat = path.split('/').shift()
+		return [flat, eventName].join('.')
+	}
+
 	/**
 	 * Sets data to a Firebase path.
 	 * @param {string} path 		The path to set.
 	 * @param {?} data 				The value to set.
-	 * @param {string} objectId 	Set an explicit objectId
+	 * @param {string} objectID 	Use an explicit objectID
 	 * @return {Promise} 			A Promise.
 	 */
-	set (path, data, objectId) {
+	set (path, data, objectID) {
 		this.emit('serviceLoading')
 		return new Promise((resolve, reject) => {
 			const ref = this.pathToRef(path)
-			if (!objectId) {
-				objectId = ref.key()
+			if (!objectID) {
+				objectID = ref.key()
 			}
 			if (data && typeof data === 'object') {
 				// using Object.assign to also clean up 
 				// any non-own properties like observers
-				data = Object.assign({}, { objectId }, data)
+				data = Object.assign({}, { objectID }, data)
 			}
 			try {
 				ref.set(data, (e) => {
@@ -84,7 +90,11 @@ class Store extends EventEmitter {
 						this.emit('serviceError', e)
 						return reject(e)
 					}
-					resolve(objectId)
+					if (data) {
+						let eventName = this.refEventName(ref, 'changed')
+						this.emit(eventName, objectID, data)
+					}
+					resolve(objectID)
 					this.emit('serviceComplete')
 				})
 			}
@@ -97,11 +107,21 @@ class Store extends EventEmitter {
 
 	/**
 	 * Removes a path from Firebase.
-	 * @param  {string} path The path to remove.
-	 * @return {Promise}      A Promise.
+	 * @param  {string} path 		The path to remove.
+	 * @param  {string} objectID 	Use an explicit objectID
+	 * @return {Promise}      		A Promise.
 	 */
-	remove (path) {
-		return this.set(path, null)
+	remove (path, objectID) {
+		const ref = this.pathToRef(path)
+		if (!objectID) {
+			objectID = ref.key()
+		}
+		let eventName = this.refEventName(ref, 'removed')
+		return this.get(path).then((snapshot) => {
+			return this.set(path, null).then(() => {
+				this.emit(eventName, objectID, snapshot.val())
+			})
+		})
 	}
 
 	/**
@@ -130,20 +150,20 @@ class Store extends EventEmitter {
 	snapshotArray (snapshot) {
 		const results = snapshot.val()
 		const array = []
-		for (let objectId in results) {
-			array.push(results[objectId])
+		for (let objectID in results) {
+			array.push(results[objectID])
 		}
 		return array
 	}
 
 	/**
-	 * Retrieve snapshot on event from a Firebase path.
-	 * @param  {string}   path      The path to retrieve.
-	 * @param  {string}   eventName A valid Firebase event name.
+	 * Listen for Firebase data changes.
+	 * @param  {string}   path      The Firebase path.
+	 * @param  {string}   eventName A valid Firebase event name (i.e. child_added).
 	 * @param  {Function} cb        Success callback.
 	 * @param  {[type]}   error     Error callback.
 	 */
-	getOn (path, eventName, cb, error) {
+	listen (path, eventName, cb, error) {
 		this.pathToRef(path).on(eventName, (snapshot) => {
 			cb(snapshot)
 			this.emit('serviceComplete')
